@@ -1,7 +1,3 @@
-let zx = {
-    el: '#zx',
-    data: {title: '标题'}
-}
 
 class zxVue {
     constructor(options) {
@@ -19,7 +15,7 @@ class zxVue {
     }
     proxyKey(prop) {
         let self = this
-        Object.defineProperty(self.data, prop, {
+        Object.defineProperty(self, prop, {
             get(){
                 return self.data[prop]
             },
@@ -55,21 +51,49 @@ class zxVue {
         let nodes = el.childNodes
         for(let i = 0; i < nodes.length; i++) {
             let node = nodes[i]
-            if (node.nodeType === 1) { // 文本节点
-                let propWithSymbol = node.textNode // 其实是一个data的一个prop
-                self.txtCompile(propWithSymbol)
+            if (node.nodeType === 3) { // 文本节点
+                if (!node.textContent.trim()) continue
+                self.txtCompile(node, 'textContent')
             } else {
-                if(node.nodeType === 3) { // 元素节点
+                if(node.nodeType === 1) { // 元素节点
 
                 }
             }
         }
     }
-    txtCompile(propWithSymbol) {
-        let txt = propWithSymbol.trim()
-        let reg = /\{\{.*\}\}/g
+    txtCompile(node, type) {
+        let self = this
+        let txt = node[type].trim()
+        let reg = /\{\{(.*?)\}\}/g
         if(reg.test(txt)) {
-
+            node[type] = txt.replace(reg, function(match, prop){
+                let wlist = self.watcherTask[prop] || []
+                wlist.push(new Watcher(node, self, prop, type))
+                // 处理prop可能是ly.name这样的值
+                let arr= prop.split('.')
+                if (arr.length>1) {
+                    let val = null
+                    for(let ele of arr){
+                        val = val ? val[ele] : self[ele]
+                    }
+                    return val
+                } else {
+                    return self[prop]
+                }
+            })
         }
+    }
+}
+
+class Watcher{
+    constructor(node, vm, prop, type){
+        this.node = node
+        this.vm = vm
+        this.prop = prop
+        this.type = type
+        this.update()
+    }
+    update() {
+        this.node[this.type] = this.vm[this.prop]
     }
 }
